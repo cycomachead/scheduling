@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 
 from __future__ import print_function
 import random
@@ -6,15 +6,19 @@ from simanneal import Annealer
 import csv
 import numpy as np
 from pprint import pprint
+import sys
 
-n_slots = 9
-slot_num = [1, 1, 1,
-            2, 2, 2,
-            3, 3, 3]
+n_slots = 20
+slot_num = list(range(20))
 
 min_people = 1
 
-f = open('test.csv')
+file_name = 'test.csv'
+
+if len(sys.argv) > 1:
+    file_name = sys.argv[1]
+
+f = open(file_name)
 reader = csv.DictReader(f)
 
 names = list()
@@ -32,13 +36,13 @@ name_dict = dict()
 for row in reader:
 
     slots = int(row['num_slots'])
-    
+
     if row['preferences'] == '':
         print("warning: {0} did not list any available slots, ignoring...".format(
             row['name']))
         continue
-    
-    
+
+
     pref = [int(x) for x in row['preferences'].split(' ')]
 
     if len(pref) < slots:
@@ -64,7 +68,7 @@ for row in reader:
 
     names.append(row['name'])
     l_slots.append(slots)
-    
+
     n_people += 1
 
 f.close()
@@ -110,7 +114,8 @@ class ScheduleLA(Annealer):
         slots = l_possible_slots[p]
         if len(slots) < 2:
             return
-        
+
+        # NOTE: This line seems broken in py3
         a, b = random.sample(slots, 2)
         self.state[p, a], self.state[p, b] = self.state[p, b], self.state[p, a]
 
@@ -119,7 +124,7 @@ class ScheduleLA(Annealer):
 
         # number of total lab assistants in each lab
         lab_people = np.sum(self.state, axis=0)
-        
+
         # each lab should have at least min_people
         energy += 5000 * np.sum((min_people - lab_people) * (lab_people < min_people))
 
@@ -130,14 +135,14 @@ class ScheduleLA(Annealer):
         # m = max(lab_people) - min(lab_people)
         # energy += 1000 * m
         energy += np.std(lab_people) * 500
-        
+
         # prefer schedules with minimum gaps
         energy += compute_gaps(self.state) * 20
         return energy
 
     def copy_state(self, state):
         return np.copy(state)
-    
+
 la = ScheduleLA(l_actual)
 
 la.updates = 200
@@ -155,7 +160,7 @@ pprint(la.state)
 pprint(np.sum(la.state, axis=0))
 print(la.energy())
 
-f = open('test_out.csv', 'w')
+f = open(file_name + '_out.csv', 'w')
 fieldnames = ['name', 'slots']
 writer = csv.DictWriter(f, fieldnames)
 writer.writeheader()
